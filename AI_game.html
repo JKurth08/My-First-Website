@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pong</title>
+  <style>
+    :root {
+      --bg: #0b0f14;      /* deep slate */
+      --fg: #e6f1ff;      /* soft white */
+      --acc: #4ae3b5;     /* teal */
+      --dim: #1a2230;     /* panel */
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: radial-gradient(1000px 600px at 50% 30%, #121826 0%, var(--bg) 60%);
+      color: var(--fg);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .wrap {
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .frame {
+      width: min(92vw, 900px);
+      aspect-ratio: 16 / 10;
+      background: linear-gradient(180deg, #0f1520 0%, #0b0f14 100%);
+      border: 1px solid #1f2b3a;
+      border-radius: 18px;
+      box-shadow: 0 10px 40px rgba(0,0,0,.4), inset 0 0 0 1px rgba(255,255,255,.04);
+      position: relative;
+      overflow: hidden;
+    }
+    canvas { width: 100%; height: 100%; display: block; }
+    .hud {
+      position: absolute; inset: 0; pointer-events: none; display: grid; grid-template-rows: auto 1fr auto;
+    }
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; font-weight: 600; letter-spacing: .4px;
+    }
+    .pill { background: var(--dim); border: 1px solid #243146; border-radius: 999px; padding: 6px 10px; font-size: 12px; }
+    .brand { gap: 8px; display: inline-flex; align-items: center; }
+    .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--acc); box-shadow: 0 0 10px var(--acc); }
+    .centerMsg { align-self: center; text-align: center; }
+    .title { font-size: clamp(20px, 4vw, 34px); font-weight: 800; margin: 0 0 8px; }
+    .subtitle { opacity: .8; font-size: clamp(12px, 2.2vw, 16px); margin-bottom: 18px; }
+    .keys { display: inline-flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    kbd { background: #0d1522; border: 1px solid #203049; border-bottom-color: #152237; border-radius: 8px; padding: 6px 10px; box-shadow: 0 2px 0 #0a111e; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+    .footer { color: #a9b8d0; font-size: 12px; opacity: .9; padding: 10px 12px; }
+    .footer b { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="frame" id="frame">
+      <canvas id="game" width="960" height="600" aria-label="Pong game"></canvas>
+      <div class="hud">
+        <div class="topbar">
+          <div class="brand"><span class="dot"></span> <span>Pong</span></div>
+          <div class="pill" id="score">0 : 0</div>
+        </div>
+        <div class="centerMsg" id="center">
+          <h1 class="title">Press <kbd>Space</kbd> to Play</h1>
+          <div class="subtitle">Left: <kbd>W</kbd>/<kbd>S</kbd> • Right: <kbd>↑</kbd>/<kbd>↓</kbd> • Pause: <kbd>Space</kbd> • Reset: <kbd>R</kbd></div>
+          <div class="subtitle">Tip: On touch screens, drag on the left/right halves to move paddles.</div>
+          <div class="keys">
+            <span class="pill">1P vs CPU (default)</span>
+            <span class="pill">Toggle 2P: <kbd>T</kbd></span>
+            <span class="pill">Best of 5: <kbd>B</kbd></span>
+          </div>
+        </div>
+        <div class="footer">Built with &lt;canvas&gt;. Physics have a bit of spin: hit the ball off‑center to curve it. <b>Have fun!</b></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Simple Pong -------------------------------------------------------
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const hudScore = document.getElementById('score');
+    const centerMsg = document.getElementById('center');
+
+    const W = canvas.width, H = canvas.height;
+
+    const state = {
+      running: false,
+      twoPlayer: false,
+      bestOf: 0, // 0 = endless; 5 = first to 3
+      left: 0,
+      right: 0,
+      servingLeft: Math.random() < 0.5,
+    };
+
+    const PADDLE = { w: 14, h: 100, speed: 520 };
+    const BALL = { r: 8, speed: 360, max: 980 };
+
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+    class Paddle {
+      constructor(x) {
+        this.x = x; this.y = H/2 - PADDLE.h/2; this.vy = 0;
+      }
+      update(dt) {
+        this.y += this.vy * dt;
+        this.y = clamp(this.y, 10, H - PADDLE.h - 10);
+      }
+      draw() {
+        ctx.fillStyle = '#b7c9e3';
+        ctx.fillRect(this.x, this.y, PADDLE.w, PADDLE.h);
+      }
+    }
+
+    class Ball {
+      constructor() { this.reset(); }
+      reset(servingLeft = state.servingLeft) {
+        this.x = W/2; this.y = H/2;
+        const angle = (Math.random()*0.6 - 0.3) * Math.PI; // -54°..54° centered
+        const dir = servingLeft ? -1 : 1;
+        const speed = BALL.speed * (0.9 + Math.random()*0.2);
+        this.vx = Math.cos(angle) * speed * dir;
+        this.vy = Math.sin(angle) * speed;
+      }
+      update(dt, pL, pR) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        // Top/bottom
+        if (this.y < BALL.r || this.y > H - BALL.r) {
+          this.y = clamp(this.y, BALL.r, H - BALL.r);
+          this.vy *= -1;
+        }
+
+        // Left paddle
+        if (this.x - BALL.r < pL.x + PADDLE.w && this.y > pL.y && this.y < pL.y + PADDLE.h && this.vx < 0) {
+          this.x = pL.x + PADDLE.w + BALL.r;
+          collideWithPaddle(this, pL);
+        }
+        // Right paddle
+        if (this.x + BALL.r > pR.x && this.y > pR.y && this.y < pR.y + PADDLE.h && this.vx > 0) {
+          this.x = pR.x - BALL.r;
+          collideWithPaddle(this, pR);
+        }
+
+        // Score
+        if (this.x < -30) { state.right++; state.servingLeft = true; scorePoint(); }
+        if (this.x > W + 30) { state.left++; state.servingLeft = false; scorePoint(); }
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, BALL.r, 0, Math.PI*2);
+        ctx.fillStyle = '#4ae3b5';
+        ctx.shadowColor = '#4ae3b5';
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    function collideWithPaddle(ball, paddle) {
+      // Add spin based on contact point & paddle velocity
+      const rel = (ball.y - (paddle.y + PADDLE.h/2)) / (PADDLE.h/2); // -1..1
+      const speed = Math.min(Math.hypot(ball.vx, ball.vy) * 1.06, BALL.max);
+      const angle = rel * (Math.PI * 0.35); // up to ~63° deflection
+      const dir = Math.sign(ball.vx) * -1; // bounce
+      ball.vx = Math.cos(angle) * speed * dir;
+      ball.vy = Math.sin(angle) * speed + paddle.vy * 0.25;
+    }
+
+    const left = new Paddle(24);
+    const right = new Paddle(W - 24 - PADDLE.w);
+    const ball = new Ball();
+
+    const keys = new Set();
+    addEventListener('keydown', e => {
+      if (['ArrowUp','ArrowDown',' '].includes(e.key)) e.preventDefault();
+      keys.add(e.key.toLowerCase());
+      if (e.key === ' ') toggleRun();
+      if (e.key.toLowerCase() === 'r') resetGame();
+      if (e.key.toLowerCase() === 't') { state.twoPlayer = !state.twoPlayer; noteCenter(`${state.twoPlayer ? '2P enabled' : '1P vs CPU'}`); }
+      if (e.key.toLowerCase() === 'b') { state.bestOf = state.bestOf ? 0 : 5; noteCenter(`${state.bestOf ? 'Best of 5' : 'Endless'}`); }
+    });
+    addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+
+    // Touch controls
+    const frame = document.getElementById('frame');
+    let touchL = null, touchR = null;
+    frame.addEventListener('touchstart', e => {
+      for (const t of e.changedTouches) {
+        if (t.clientX < frame.getBoundingClientRect().left + frame.clientWidth/2) touchL = t.identifier;
+        else touchR = t.identifier;
+      }
+    }, {passive:false});
+    frame.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        const rect = canvas.getBoundingClientRect();
+        const y = (t.clientY - rect.top) / rect.height * H;
+        if (t.identifier === touchL) left.y = clamp(y - PADDLE.h/2, 10, H - PADDLE.h - 10);
+        if (t.identifier === touchR) right.y = clamp(y - PADDLE.h/2, 10, H - PADDLE.h - 10);
+      }
+    }, {passive:false});
+    frame.addEventListener('touchend', e => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === touchL) touchL = null;
+        if (t.identifier === touchR) touchR = null;
+      }
+    });
+
+    function handleInput(dt) {
+      // Left paddle: W/S or mouse drag
+      left.vy = 0; right.vy = 0;
+      if (keys.has('w')) left.vy = -PADDLE.speed;
+      if (keys.has('s')) left.vy = PADDLE.speed;
+
+      if (state.twoPlayer) {
+        if (keys.has('arrowup')) right.vy = -PADDLE.speed;
+        if (keys.has('arrowdown')) right.vy = PADDLE.speed;
+      } else {
+        // Simple CPU: track the ball with a smoothing factor
+        const target = ball.y - (PADDLE.h/2);
+        const diff = target - right.y;
+        right.vy = clamp(diff * 6, -PADDLE.speed*0.95, PADDLE.speed*0.95);
+      }
+    }
+
+    function drawCourt() {
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle = 'rgba(255,255,255,.12)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 14]);
+      ctx.beginPath();
+      ctx.moveTo(W/2, 20); ctx.lineTo(W/2, H-20); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    let last = 0; let noteTimer = 0; let winnerText = '';
+    function loop(ts) {
+      const dt = Math.min((ts - last) / 1000, 1/30); last = ts;
+      if (state.running) {
+        handleInput(dt);
+        left.update(dt); right.update(dt); ball.update(dt, left, right);
+        hudScore.textContent = `${state.left} : ${state.right}`;
+        centerMsg.style.display = 'none';
+      } else {
+        centerMsg.style.display = 'grid';
+      }
+
+      drawCourt();
+      left.draw(); right.draw(); ball.draw();
+
+      if (noteTimer > 0) { noteTimer -= dt; if (noteTimer <= 0) centerMsg.innerHTML = baseCenterHTML(); }
+      if (winnerText) {
+        centerMsg.style.display = 'grid';
+        centerMsg.innerHTML = `<h1 class="title">${winnerText}</h1><div class="subtitle">Press <kbd>R</kbd> to reset • <kbd>Space</kbd> to play again</div>`;
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    function baseCenterHTML() {
+      return `
+        <h1 class="title">Press <kbd>Space</kbd> to Play</h1>
+        <div class="subtitle">Left: <kbd>W</kbd>/<kbd>S</kbd> • Right: <kbd>↑</kbd>/<kbd>↓</kbd> • Pause: <kbd>Space</kbd> • Reset: <kbd>R</kbd></div>
+        <div class="subtitle">Tip: On touch screens, drag on the left/right halves to move paddles.</div>
+        <div class="keys">
+          <span class="pill">1P vs CPU (default)</span>
+          <span class="pill">Toggle 2P: <kbd>T</kbd></span>
+          <span class="pill">Best of 5: <kbd>B</kbd></span>
+        </div>`;
+    }
+
+    function noteCenter(msg) {
+      centerMsg.style.display = 'grid';
+      centerMsg.innerHTML = `<h1 class="title">${msg}</h1><div class="subtitle">Press <kbd>Space</kbd> to play</div>`;
+      noteTimer = 1.2;
+    }
+
+    function scorePoint() {
+      ball.reset();
+      hudScore.textContent = `${state.left} : ${state.right}`;
+      // Best-of mode
+      if (state.bestOf) {
+        const target = (state.bestOf + 1) / 2;
+        if (state.left >= target || state.right >= target) {
+          winnerText = state.left > state.right ? 'Left Player Wins!' : 'Right Player Wins!';
+          state.running = false;
+        }
+      }
+    }
+
+    function toggleRun() {
+      if (winnerText) { winnerText = ''; ball.reset(); }
+      state.running = !state.running;
+    }
+    function resetGame() {
+      state.left = 0; state.right = 0; winnerText = '';
+      ball.reset(); left.y = H/2 - PADDLE.h/2; right.y = H/2 - PADDLE.h/2;
+      hudScore.textContent = '0 : 0';
+      state.running = false;
+      centerMsg.innerHTML = baseCenterHTML();
+      centerMsg.style.display = 'grid';
+    }
+
+    // Mouse move for left paddle (desktop convenience)
+    canvas.addEventListener('mousemove', e => {
+      const rect = canvas.getBoundingClientRect();
+      const y = (e.clientY - rect.top) / rect.height * H;
+      if (!state.twoPlayer) left.y = clamp(y - PADDLE.h/2, 10, H - PADDLE.h - 10);
+    });
+
+    // Start
+    centerMsg.innerHTML = baseCenterHTML();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

@@ -1,211 +1,397 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Gold Catch Game</title>
-  <style>
-    :root{
-      --bg1:#0a0f1f; --bg2:#141d3a; --hud:#e9f1ff; --accent:#ffd54a; --accent2:#ff9f1a;
-    }
-    html,body{height:100%;margin:0;background:radial-gradient(1200px 700px at 50% 10%, var(--bg2), var(--bg1));color:var(--hud);font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;}
-    .wrap{height:100%;display:grid;place-items:center;padding:16px;box-sizing:border-box}
-    .frame{width:min(92vw,920px);aspect-ratio:16/10;border-radius:20px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.08);box-shadow:0 20px 60px rgba(0,0,0,.45),inset 0 0 0 1px rgba(255,255,255,.04)}
-    canvas{width:100%;height:100%;display:block;background:linear-gradient(#0b1530,#081024)}
-    .hud{position:absolute;inset:0;pointer-events:none;display:grid;grid-template-rows:auto 1fr auto}
-    .top{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 14px;font-weight:700}
-    .pill{pointer-events:auto;background:rgba(15,25,55,.5);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:6px 12px}
-    .btn{cursor:pointer}
-    .center{align-self:center;justify-self:center;text-align:center}
-    .title{margin:0 0 8px;font-size:clamp(20px,4vw,36px);font-weight:900}
-    .subtitle{opacity:.9}
-    .keys kbd{background:#0d1735;border:1px solid #22325c;border-bottom-color:#13214a;border-radius:8px;padding:5px 8px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
-    .foot{padding:8px 12px;font-size:12px;color:#baceff}
-    .blink{animation:blink 1s linear infinite}
-    @keyframes blink{50%{opacity:.3}}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gold Catcher</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(180deg, #87CEEB 0%, #98D8E8 100%);
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #gameArea {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            margin: 20px auto;
+            border: 3px solid #4682B4;
+            background: linear-gradient(180deg, #87CEEB 0%, #B0E0E6 100%);
+            overflow: hidden;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+        
+        #basket {
+            position: absolute;
+            bottom: 20px;
+            left: 375px;
+            width: 50px;
+            height: 30px;
+            background: linear-gradient(145deg, #8B4513, #A0522D);
+            border: 2px solid #654321;
+            border-radius: 0 0 15px 15px;
+            box-shadow: inset 0 -5px 10px rgba(0,0,0,0.3);
+        }
+        
+        .gold {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #FFD700, #FFA500, #FF8C00);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.8), inset 2px 2px 4px rgba(255,255,255,0.3);
+            animation: sparkle 1.5s infinite alternate;
+        }
+        
+        @keyframes sparkle {
+            0% { filter: brightness(1) drop-shadow(0 0 5px #FFD700); }
+            100% { filter: brightness(1.2) drop-shadow(0 0 15px #FFD700); }
+        }
+        
+        .small-gold {
+            width: 15px;
+            height: 15px;
+        }
+        
+        .medium-gold {
+            width: 25px;
+            height: 25px;
+        }
+        
+        .large-gold {
+            width: 35px;
+            height: 35px;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #2F4F4F;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+            z-index: 100;
+        }
+        
+        #score {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        #timer {
+            font-size: 18px;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #FFD700;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particle-float 0.8s ease-out forwards;
+        }
+        
+        @keyframes particle-float {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-50px) scale(0);
+            }
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: #2F4F4F;
+            font-size: 14px;
+            text-align: right;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+        }
+        
+        .cloud {
+            position: absolute;
+            background: white;
+            border-radius: 50px;
+            opacity: 0.7;
+            animation: float-cloud 15s infinite linear;
+        }
+        
+        @keyframes float-cloud {
+            0% { transform: translateX(-100px); }
+            100% { transform: translateX(900px); }
+        }
+    </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="frame" id="frame">
-      <canvas id="game" width="960" height="600" aria-label="Basket Catch game"></canvas>
-      <div class="hud">
-        <div class="top">
-          <div class="pill" id="score">Score: 0</div>
-          <div class="pill" id="timer">Time: 60</div>
-          <div class="pill btn" id="startBtn">▶ Start</div>
+    <div id="gameContainer">
+        <div id="gameArea">
+            <div id="ui">
+                <div id="score">Score: 0</div>
+                <div id="timer">Time: 60</div>
+            </div>
+            <div id="basket"></div>
+            <div id="instructions">
+                Use Arrow Keys to Move<br>
+                Small Gold = 1pt<br>
+                Medium Gold = 2pts<br>
+                Large Gold = 3pts
+            </div>
         </div>
-        <div class="center" id="center"></div>
-      </div>
     </div>
-  </div>
 
-  <!-- Tiny embedded sounds (data URI) -->
-  <audio id="sndCatch" preload="auto" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAAABAACAgICA/////w8PDwAAAP///wAAAP8AAAAAAP///wAAAAAAAP///w8PDw8PDw8PDw8PDw8PDw8PDw8PDw8P"></audio>
-  <audio id="sndMiss" preload="auto" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAAABAACAgICA/////w8PDwAAAP8AAAAPDw8PDw8AAAAPDw8AAAAPDw8PDw8AAAA="></audio>
-
-  <script>
-  const canvas = document.getElementById('game');
-  const ctx = canvas.getContext('2d');
-  const scoreEl = document.getElementById('score');
-  const timerEl = document.getElementById('timer');
-  const center = document.getElementById('center');
-  const startBtn = document.getElementById('startBtn');
-  const sndCatch = document.getElementById('sndCatch');
-  const sndMiss = document.getElementById('sndMiss');
-
-  const W = canvas.width, H = canvas.height;
-
-  // Game settings (easy tuning)
-  let gravity = 520;          // px/s^2 applied to gold
-  let spawnRate = 0.75;       // gold per second
-  const maxGold = 40;         // on-screen cap
-  const gameLength = 60;      // seconds
-
-  // Basket
-  const basket = { x: W/2, y: H-90, w: 110, h: 36, vx: 0, vy: 0, speed: 520 };
-
-  // Entities
-  const golds = []; // {x,y,r,vy,value,spin}
-  const sparks = []; // particles for visual effect
-
-  // State
-  let running = false; let tLeft = gameLength; let score = 0; let last = 0; let spawnAcc = 0;
-  const keys = new Set();
-
-  function reset(){
-    score = 0; tLeft = gameLength; running = false; last = 0; spawnAcc = 0;
-    golds.length = 0; sparks.length = 0; basket.x = W/2; basket.y = H-90; basket.vx=0; basket.vy=0;
-    scoreEl.textContent = `Score: ${score}`; timerEl.textContent = `Time: ${Math.ceil(tLeft)}`;
-  }
-
-  function spawnGold(){
-    if (golds.length >= maxGold) return;
-    const r = 10 + Math.random()*26;
-    const x = 40 + Math.random() * (W - 80);
-    const y = -r - 10;
-    const vy = 60 + r * 2 + Math.random()*40;
-    const value = Math.round(r);
-    const spin = (Math.random()*2-1) * 2;
-    golds.push({x,y,r,vy,value,spin,a:0});
-  }
-
-  function update(dt){
-    basket.vx = 0; basket.vy = 0;
-    if (keys.has('arrowleft')) basket.vx = -basket.speed;
-    if (keys.has('arrowright')) basket.vx = basket.speed;
-    if (keys.has('arrowup')) basket.vy = -basket.speed;
-    if (keys.has('arrowdown')) basket.vy = basket.speed;
-
-    basket.x += basket.vx * dt; basket.y += basket.vy * dt;
-    basket.x = Math.max(14, Math.min(W - basket.w - 14, basket.x));
-    basket.y = Math.max(60, Math.min(H - basket.h - 14, basket.y));
-
-    spawnAcc += dt * spawnRate;
-    while (spawnAcc >= 1){ spawnGold(); spawnAcc -= 1; }
-
-    for (let i=golds.length-1;i>=0;i--){
-      const g = golds[i];
-      g.vy += gravity * dt * 0.2;
-      g.y += g.vy * dt; g.a += g.spin * dt;
-
-      const nearestX = Math.max(basket.x, Math.min(g.x, basket.x + basket.w));
-      const nearestY = Math.max(basket.y, Math.min(g.y, basket.y + basket.h));
-      const dx = g.x - nearestX, dy = g.y - nearestY;
-      if (dx*dx + dy*dy <= g.r*g.r){
-        score += g.value; scoreEl.textContent = `Score: ${score}`;
-        popSparks(g.x, g.y, g.r);
-        try{ sndCatch.currentTime = 0; sndCatch.play(); }catch{}
-        golds.splice(i,1);
-        continue;
-      }
-
-      if (g.y - g.r > H + 10){
-        try{ sndMiss.currentTime = 0; sndMiss.play(); }catch{}
-        golds.splice(i,1);
-      }
-    }
-
-    for (let i=sparks.length-1;i>=0;i--){
-      const p = sparks[i];
-      p.vx *= 0.99; p.vy += 900*dt; p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt; p.a += p.va*dt;
-      if (p.life <= 0) sparks.splice(i,1);
-    }
-  }
-
-  function draw(){
-    ctx.clearRect(0,0,W,H);
-    ctx.fillStyle = 'rgba(255,255,255,.08)';
-    for(let i=0;i<40;i++){ const x=(i*137)%W; const y=(i*97)%H*0.5+10; ctx.fillRect((x+(i*7%30))%W, y, 2, 2); }
-
-    ctx.save();
-    ctx.shadowColor = '#000'; ctx.shadowBlur = 12;
-    const grd = ctx.createLinearGradient(basket.x, basket.y, basket.x, basket.y+basket.h);
-    grd.addColorStop(0,'#2c3e60'); grd.addColorStop(1,'#16223f');
-    ctx.fillStyle = grd;
-    roundRect(basket.x, basket.y, basket.w, basket.h, 10);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,.2)'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.restore();
-
-    for (const g of golds){
-      ctx.save();
-      ctx.translate(g.x, g.y); ctx.rotate(g.a||0);
-      const g1 = ctx.createRadialGradient(0,0,g.r*0.2, 0,0,g.r);
-      g1.addColorStop(0,'#fff6c2'); g1.addColorStop(0.5,'#ffd54a'); g1.addColorStop(1,'#b57a00');
-      ctx.fillStyle = g1; ctx.beginPath(); ctx.arc(0,0,g.r,0,Math.PI*2); ctx.fill();
-      ctx.restore();
-    }
-
-    for (const p of sparks){
-      ctx.save(); ctx.globalAlpha = Math.max(0,p.life/0.6);
-      ctx.translate(p.x,p.y); ctx.rotate(p.a||0);
-      ctx.fillStyle = '#ffe17a'; ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s);
-      ctx.restore();
-    }
-  }
-
-  function roundRect(x,y,w,h,r){
-    ctx.beginPath();
-    ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
-    ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r);
-    ctx.closePath();
-  }
-
-  function popSparks(x,y,rad){
-    for(let i=0;i<10;i++){
-      sparks.push({x,y, vx:(Math.random()*2-1)*300, vy:(Math.random()*-1-0.2)*300, life:0.6+Math.random()*0.3, s:2+Math.random()*3, a:0, va:(Math.random()*2-1)*20});
-    }
-  }
-
-  function loop(ts){
-    const dt = Math.min((ts - last)/1000, 1/30); last = ts;
-    if (running){
-      update(dt); draw();
-      tLeft -= dt; timerEl.textContent = `Time: ${Math.max(0,Math.ceil(tLeft))}`;
-      if (tLeft <= 0){ running=false; center.innerHTML = `<h1 class='title'>Time! Score: ${score}</h1><p class='subtitle'>Press <kbd>Space</kbd> or Start to play again.</p>`; center.style.display='block'; }
-    } else {
-      draw();
-    }
-    requestAnimationFrame(loop);
-  }
-
-  addEventListener('keydown', e=>{ const k=e.key.toLowerCase(); if(['arrowleft','arrowright','arrowup','arrowdown',' '].includes(e.key)){ e.preventDefault(); }
-    keys.add(k); if (e.key===' ') startGame(); });
-  addEventListener('keyup', e=> keys.delete(e.key.toLowerCase()));
-  startBtn.addEventListener('click', startGame);
-
-  function startGame(){
-    if (!running){ reset(); running=true; center.style.display='none'; }
-  }
-
-  reset(center.innerHTML = `
-  <h1 class="title">Basket Catch</h1>
-  <div class="subtitle">Use <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> to move the basket and catch falling gold!</div>
-  <p class="subtitle">Press <kbd>Space</kbd> or click Start to play.</p>
-`;
-center.style.display = 'block';);
-  requestAnimationFrame(loop);
-  </script>
+    <script>
+        class GoldCatcher {
+            constructor() {
+                this.basket = document.getElementById('basket');
+                this.gameArea = document.getElementById('gameArea');
+                this.scoreElement = document.getElementById('score');
+                this.timerElement = document.getElementById('timer');
+                
+                this.basketPos = { x: 375, y: 550 };
+                this.score = 0;
+                this.timeLeft = 60;
+                this.golds = [];
+                this.keys = {};
+                
+                this.gameArea.style.position = 'relative';
+                this.gameWidth = 800;
+                this.gameHeight = 600;
+                this.basketSpeed = 5;
+                
+                this.init();
+                this.createClouds();
+            }
+            
+            init() {
+                this.bindEvents();
+                this.startGame();
+            }
+            
+            bindEvents() {
+                document.addEventListener('keydown', (e) => {
+                    this.keys[e.key] = true;
+                    e.preventDefault();
+                });
+                
+                document.addEventListener('keyup', (e) => {
+                    this.keys[e.key] = false;
+                    e.preventDefault();
+                });
+            }
+            
+            createClouds() {
+                for (let i = 0; i < 3; i++) {
+                    const cloud = document.createElement('div');
+                    cloud.className = 'cloud';
+                    cloud.style.width = Math.random() * 60 + 40 + 'px';
+                    cloud.style.height = Math.random() * 30 + 20 + 'px';
+                    cloud.style.top = Math.random() * 100 + 'px';
+                    cloud.style.animationDelay = Math.random() * 15 + 's';
+                    this.gameArea.appendChild(cloud);
+                }
+            }
+            
+            startGame() {
+                this.gameTimer = setInterval(() => {
+                    this.timeLeft--;
+                    this.timerElement.textContent = `Time: ${this.timeLeft}`;
+                    
+                    if (this.timeLeft <= 0) {
+                        this.endGame();
+                    }
+                }, 1000);
+                
+                this.goldSpawner = setInterval(() => {
+                    this.spawnGold();
+                }, 800);
+                
+                this.gameLoop();
+            }
+            
+            spawnGold() {
+                const gold = document.createElement('div');
+                gold.className = 'gold';
+                
+                const sizes = ['small-gold', 'medium-gold', 'large-gold'];
+                const weights = [60, 30, 10]; // Higher chance for smaller gold
+                
+                let random = Math.random() * 100;
+                let selectedSize;
+                let points;
+                
+                if (random < weights[0]) {
+                    selectedSize = sizes[0];
+                    points = 1;
+                } else if (random < weights[0] + weights[1]) {
+                    selectedSize = sizes[1];
+                    points = 2;
+                } else {
+                    selectedSize = sizes[2];
+                    points = 3;
+                }
+                
+                gold.classList.add(selectedSize);
+                gold.style.left = Math.random() * (this.gameWidth - 35) + 'px';
+                gold.style.top = '0px';
+                
+                const goldObj = {
+                    element: gold,
+                    x: parseInt(gold.style.left),
+                    y: 0,
+                    points: points,
+                    speed: Math.random() * 2 + 1
+                };
+                
+                this.golds.push(goldObj);
+                this.gameArea.appendChild(gold);
+            }
+            
+            updateBasket() {
+                if (this.keys['ArrowLeft'] && this.basketPos.x > 0) {
+                    this.basketPos.x -= this.basketSpeed;
+                }
+                if (this.keys['ArrowRight'] && this.basketPos.x < this.gameWidth - 50) {
+                    this.basketPos.x += this.basketSpeed;
+                }
+                if (this.keys['ArrowUp'] && this.basketPos.y > 0) {
+                    this.basketPos.y -= this.basketSpeed;
+                }
+                if (this.keys['ArrowDown'] && this.basketPos.y < this.gameHeight - 30) {
+                    this.basketPos.y += this.basketSpeed;
+                }
+                
+                this.basket.style.left = this.basketPos.x + 'px';
+                this.basket.style.top = this.basketPos.y + 'px';
+            }
+            
+            updateGolds() {
+                this.golds.forEach((gold, index) => {
+                    gold.y += gold.speed;
+                    gold.element.style.top = gold.y + 'px';
+                    
+                    // Check collision with basket
+                    if (this.checkCollision(gold)) {
+                        this.collectGold(gold, index);
+                    }
+                    
+                    // Remove gold if it falls off screen
+                    if (gold.y > this.gameHeight) {
+                        gold.element.remove();
+                        this.golds.splice(index, 1);
+                    }
+                });
+            }
+            
+            checkCollision(gold) {
+                const goldRect = {
+                    x: gold.x,
+                    y: gold.y,
+                    width: parseInt(gold.element.style.width) || 15,
+                    height: parseInt(gold.element.style.height) || 15
+                };
+                
+                const basketRect = {
+                    x: this.basketPos.x,
+                    y: this.basketPos.y,
+                    width: 50,
+                    height: 30
+                };
+                
+                return goldRect.x < basketRect.x + basketRect.width &&
+                       goldRect.x + goldRect.width > basketRect.x &&
+                       goldRect.y < basketRect.y + basketRect.height &&
+                       goldRect.y + goldRect.height > basketRect.y;
+            }
+            
+            collectGold(gold, index) {
+                this.score += gold.points;
+                this.scoreElement.textContent = `Score: ${this.score}`;
+                
+                // Create particle effect
+                this.createParticles(gold.x + 15, gold.y + 15);
+                
+                // Play collect sound effect
+                this.playCollectSound();
+                
+                gold.element.remove();
+                this.golds.splice(index, 1);
+            }
+            
+            createParticles(x, y) {
+                for (let i = 0; i < 8; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.left = x + Math.random() * 20 - 10 + 'px';
+                    particle.style.top = y + Math.random() * 20 - 10 + 'px';
+                    this.gameArea.appendChild(particle);
+                    
+                    setTimeout(() => particle.remove(), 800);
+                }
+            }
+            
+            playCollectSound() {
+                // Create audio context for sound effects
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.1);
+            }
+            
+            gameLoop() {
+                if (this.timeLeft > 0) {
+                    this.updateBasket();
+                    this.updateGolds();
+                    requestAnimationFrame(() => this.gameLoop());
+                }
+            }
+            
+            endGame() {
+                clearInterval(this.gameTimer);
+                clearInterval(this.goldSpawner);
+                
+                setTimeout(() => {
+                    alert(`Game Over! Final Score: ${this.score}`);
+                    if (confirm('Play again?')) {
+                        location.reload();
+                    }
+                }, 100);
+            }
+        }
+        
+        // Start the game when page loads
+        window.addEventListener('load', () => {
+            new GoldCatcher();
+        });
+    </script>
 </body>
 </html>
